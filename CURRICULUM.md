@@ -1,11 +1,8 @@
-# Claude Mastery Curriculum — TaskFlow
+# Curriculum status
 
-Seven phases, one running project. Each phase pairs a Claude Code capability with
-a milestone on **TaskFlow** — an AI-augmented task manager with a Python
-(FastAPI) backend and a TypeScript (React + Vite) frontend.
-
-Full rationale and exercises: see the plan shared at project kickoff
-(2026-07-08). This file tracks status as we move through it.
+Live tracker for the seven-phase plan. Full rationale, concepts, and
+exercises for each phase are in [README.md](README.md) — this file just
+tracks progress.
 
 ## Status
 
