@@ -40,6 +40,27 @@ describe('App', () => {
     expect(await screen.findByText('Ship phase 03')).toBeInTheDocument()
   })
 
+  it('shows a task count summary once tasks load, counting done separately', async () => {
+    mockedApi.listTasks.mockResolvedValue([
+      makeTask({ id: 't1', status: 'done' }),
+      makeTask({ id: 't2', status: 'todo' }),
+      makeTask({ id: 't3', status: 'doing' }),
+    ])
+
+    render(<App />)
+
+    expect(await screen.findByText('3 tasks, 1 done')).toBeInTheDocument()
+  })
+
+  it('shows no summary when there are no tasks', async () => {
+    mockedApi.listTasks.mockResolvedValue([])
+
+    render(<App />)
+    await screen.findByText('No tasks yet.')
+
+    expect(screen.queryByText(/done$/)).not.toBeInTheDocument()
+  })
+
   it('shows unreachable when the health check fails', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch
 
