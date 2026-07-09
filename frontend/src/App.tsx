@@ -59,6 +59,12 @@ function App() {
       <p>
         Backend status: <strong className={`status status-${health}`}>{health}</strong>
       </p>
+      {tasks.length > 0 && (
+        <p className="task-summary">
+          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'},{' '}
+          {tasks.filter((t) => t.status === 'done').length} done
+        </p>
+      )}
 
       <form onSubmit={handleAddTask} className="add-task">
         <input
