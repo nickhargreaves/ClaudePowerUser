@@ -8,7 +8,7 @@ tracks progress.
 
 - [x] 00 — Setup
 - [x] 01 — Foundations (CLAUDE.md, plan mode)
-- [ ] 02 — Agentic workflow (skills, subagents, hooks)
+- [x] 02 — Agentic workflow (skills, subagents, hooks)
 - [ ] 03 — Testing (pytest, Vitest, verify skill)
 - [ ] 04 — CI/CD (GitHub Actions, code-review, ultrareview)
 - [ ] 05 — Deployment (Docker, secrets, real deploy target)
@@ -32,15 +32,27 @@ tracks progress.
 - Frontend: task list + add/status-change/delete UI wired to the API,
   verified live in the browser (create → update → delete round trip)
 
-## Phase 02 — Agentic workflow (in progress)
+## Phase 02 — Agentic workflow
 
-- [x] `ANTHROPIC_API_KEY` wired via `pydantic-settings`, read from gitignored
-      `backend/.env`
-- [x] `/new-endpoint` project skill written (`.claude/commands/new-endpoint.md`)
-- [x] Milestone: AI-triage endpoint (`POST /tasks/{id}/triage`) scaffolded
-      with `/new-endpoint` — Claude tool-use call suggests a priority +
-      rationale without mutating the task; 404/502 handled; tests mock the
-      Claude call; frontend has a matching wrapper + "Suggest priority" button
-- [ ] Hook: auto-run `ruff`/`oxlint` after edits
-- [ ] Narrow the permission allowlist in `.claude/settings.json`
-- [ ] Explore subagent exercise (delegate a "where does X happen" question)
+- `ANTHROPIC_API_KEY` wired via `pydantic-settings`, read from gitignored
+  `backend/.env`
+- `/new-endpoint` project skill written (`.claude/commands/new-endpoint.md`)
+- Milestone: AI-triage endpoint (`POST /tasks/{id}/triage`) scaffolded with
+  `/new-endpoint` — Claude tool-use call suggests a priority + rationale
+  without mutating the task; 404/502 handled; tests mock the Claude call;
+  frontend has a matching wrapper + "Suggest priority" button
+- Hook: `PostToolUse` on `Write|Edit` auto-runs `ruff --fix` (backend) or
+  `oxlint --fix` (frontend) based on which directory changed
+  (`.claude/settings.json`) — verified live: an unused import introduced via
+  Edit was auto-removed on the next edit
+- Permission allowlist narrowed to the dev loop (pytest/ruff/uvicorn/npm
+  scripts, read-only git); commits/pushes/destructive commands still prompt
+- Explore subagent exercise: delegated tracing the `priority` field end to
+  end across backend/frontend — subagent returned cited file:line findings
+  independently
+
+## Phase 03 — Testing (next)
+
+Goal: pytest for the API (already have some coverage — extend it), Vitest +
+React Testing Library for the frontend, TDD loop, and the `verify` skill for
+end-to-end proof beyond green tests.
