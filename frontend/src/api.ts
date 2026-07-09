@@ -1,4 +1,4 @@
-import type { Task, TaskPriority } from './types'
+import type { Task, TaskPriority, TriageSuggestion } from './types'
 
 const BASE = '/api/tasks'
 
@@ -31,4 +31,10 @@ export async function updateTask(id: string, patch: Partial<Pick<Task, 'title' |
 export async function deleteTask(id: string): Promise<void> {
   const res = await fetch(`${BASE}/${id}`, { method: 'DELETE' })
   if (!res.ok) throw new Error(`Failed to delete task: ${res.status}`)
+}
+
+export async function triageTask(id: string): Promise<TriageSuggestion> {
+  const res = await fetch(`${BASE}/${id}/triage`, { method: 'POST' })
+  if (!res.ok) throw new Error(`Failed to triage task: ${res.status}`)
+  return res.json()
 }

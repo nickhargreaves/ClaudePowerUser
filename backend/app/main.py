@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.models import Task, TaskCreate, TaskUpdate
+from app.models import Task, TaskCreate, TaskUpdate, TriageSuggestion
 from app.store import store
+from app.triage import suggest_priority
 
 app = FastAPI(title="TaskFlow API")
 
@@ -49,3 +50,14 @@ def update_task(task_id: str, data: TaskUpdate) -> Task:
 def delete_task(task_id: str) -> None:
     if not store.delete(task_id):
         raise HTTPException(status_code=404, detail="Task not found")
+
+
+@app.post("/tasks/{task_id}/triage")
+def triage_task(task_id: str) -> TriageSuggestion:
+    task = store.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    try:
+        return suggest_priority(task)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Triage service unavailable") from exc

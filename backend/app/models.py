@@ -37,3 +37,8 @@ class Task(BaseModel):
     priority: TaskPriority
     created_at: datetime
     updated_at: datetime
+
+
+class TriageSuggestion(BaseModel):
+    priority: TaskPriority
+    rationale: str

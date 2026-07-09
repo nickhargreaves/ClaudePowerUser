@@ -65,3 +65,14 @@
   color: #888;
   padding: 0.5rem 0;
 }
+
+.task-suggestion {
+  margin: 0.35rem 0 0;
+  padding: 0 0.75rem;
+  font-size: 0.9rem;
+  color: #1f6f5c;
+}
+
+.task-suggestion-error {
+  color: #a03e3e;
+}

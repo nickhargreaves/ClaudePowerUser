@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
-import { createTask, deleteTask, listTasks, updateTask } from './api'
-import type { Task, TaskStatus } from './types'
+import { createTask, deleteTask, listTasks, triageTask, updateTask } from './api'
+import type { Task, TaskStatus, TriageSuggestion } from './types'
 
 type HealthStatus = 'checking' | 'ok' | 'unreachable'
 
@@ -9,6 +9,7 @@ function App() {
   const [health, setHealth] = useState<HealthStatus>('checking')
   const [tasks, setTasks] = useState<Task[]>([])
   const [title, setTitle] = useState('')
+  const [suggestions, setSuggestions] = useState<Record<string, TriageSuggestion | 'loading' | 'error'>>({})
 
   useEffect(() => {
     fetch('/api/health')
@@ -41,6 +42,16 @@ function App() {
     refreshTasks()
   }
 
+  async function handleTriage(task: Task) {
+    setSuggestions((prev) => ({ ...prev, [task.id]: 'loading' }))
+    try {
+      const suggestion = await triageTask(task.id)
+      setSuggestions((prev) => ({ ...prev, [task.id]: suggestion }))
+    } catch {
+      setSuggestions((prev) => ({ ...prev, [task.id]: 'error' }))
+    }
+  }
+
   return (
     <main className="shell">
       <h1>TaskFlow</h1>
@@ -58,23 +69,40 @@ function App() {
       </form>
 
       <ul className="task-list">
-        {tasks.map((task) => (
-          <li key={task.id} className="task-row">
-            <span className="task-title">{task.title}</span>
-            <span className="task-priority">{task.priority}</span>
-            <select
-              value={task.status}
-              onChange={(e) => handleStatusChange(task, e.target.value as TaskStatus)}
-            >
-              <option value="todo">todo</option>
-              <option value="doing">doing</option>
-              <option value="done">done</option>
-            </select>
-            <button type="button" onClick={() => handleDelete(task)}>
-              Delete
-            </button>
-          </li>
-        ))}
+        {tasks.map((task) => {
+          const suggestion = suggestions[task.id]
+          return (
+            <li key={task.id} className="task-row-wrap">
+              <div className="task-row">
+                <span className="task-title">{task.title}</span>
+                <span className="task-priority">{task.priority}</span>
+                <select
+                  value={task.status}
+                  onChange={(e) => handleStatusChange(task, e.target.value as TaskStatus)}
+                >
+                  <option value="todo">todo</option>
+                  <option value="doing">doing</option>
+                  <option value="done">done</option>
+                </select>
+                <button type="button" onClick={() => handleTriage(task)}>
+                  Suggest priority
+                </button>
+                <button type="button" onClick={() => handleDelete(task)}>
+                  Delete
+                </button>
+              </div>
+              {suggestion === 'loading' && <p className="task-suggestion">Asking Claude…</p>}
+              {suggestion === 'error' && (
+                <p className="task-suggestion task-suggestion-error">Triage failed — try again.</p>
+              )}
+              {suggestion && suggestion !== 'loading' && suggestion !== 'error' && (
+                <p className="task-suggestion">
+                  Suggested: <strong>{suggestion.priority}</strong> — {suggestion.rationale}
+                </p>
+              )}
+            </li>
+          )
+        })}
         {tasks.length === 0 && <li className="task-empty">No tasks yet.</li>}
       </ul>
     </main>
