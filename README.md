@@ -11,7 +11,7 @@ observability.
 
 **Live app:** **[taskflow-nh-web.fly.dev](https://taskflow-nh-web.fly.dev)**
 (currently down — Fly's free trial ended and the account needs a credit
-card before the apps can run again; see [CURRICULUM.md](CURRICULUM.md#phase-06--observability-in-progress--blocked-on-fly-billing))
+card before the apps can run again; see [CURRICULUM.md](CURRICULUM.md#phase-06--observability))
 
 For the raw status checklist, see [CURRICULUM.md](CURRICULUM.md).
 
