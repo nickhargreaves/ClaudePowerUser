@@ -17,7 +17,7 @@ phase has a `phase-0N-done` git tag and a step-by-step lesson in
 - [x] 04 — CI/CD (GitHub Actions, code-review, ultrareview)
 - [x] 05 — Deployment (Docker, secrets, real deploy target)
 - [x] 06 — Observability (structured logging, LLM call tracing)
-- [ ] 07 — MCP & agents (own MCP server, Agent SDK, Cowork)
+- [x] 07 — MCP & agents (own MCP server, Tool Runner, scheduled agent)
 
 ## Phase 00 — Setup
 
@@ -193,8 +193,77 @@ phase has a `phase-0N-done` git tag and a step-by-step lesson in
   immediately after; `.env` is gitignored, so none of this touched git
   history
 
-## Phase 07 — MCP & agents (next)
+## Phase 07 — MCP & agents
 
-Goal: build a small MCP server exposing TaskFlow's own API as tools,
-connect it in Claude Desktop, rebuild the triage feature on the Claude
-Agent SDK, and retire one manual chore to a scheduled agent or Cowork.
+- **MCP server** (`mcp-server/`): a small `mcp.server.fastmcp.FastMCP`
+  server, stdio transport, exposing TaskFlow's own REST API as six tools
+  (`taskflow_list_tasks`, `taskflow_get_task`, `taskflow_create_task`,
+  `taskflow_update_task`, `taskflow_delete_task`, `taskflow_triage_task`) —
+  a thin `httpx` wrapper around the running backend, not a second store, so
+  the MCP server and the web UI always see the same data. Verified for
+  real through the actual protocol layer, not just imports: connected via
+  the MCP Inspector (`uv run mcp dev server.py`), listed all six tools with
+  their real schemas/annotations, ran `taskflow_create_task` end to end
+  over stdio, and confirmed the resulting task via a direct curl to the
+  backend — full round trip, not assumed. Also exercised every tool's
+  error path directly (404 on unknown task, connection-refused when the
+  backend isn't running, 502 passthrough when the Claude API call fails)
+  to confirm the friendly error strings, not just the happy path.
+- **Corrected the lesson's own rebuild target.** The lesson goal says
+  rebuild triage on "the Claude Agent SDK" — but that SDK is Claude Code
+  packaged as a library (a full coding-agent harness: file tools, bash,
+  subagents, permissions), built for open-ended agentic work. `triage.py`'s
+  `suggest_priority()` is a single forced-`tool_choice` structured-output
+  call — the "classification → one API call" tier, not an agent — so
+  Agent SDK would add a harness this call has no use for. Confirmed with
+  the user before writing any code, then rebuilt on the Anthropic SDK's
+  **Tool Runner** (`client.beta.messages.tool_runner`, beta) instead: the
+  right next-tier-up for a call that's still fundamentally one classify-
+  and-return request.
+  - **What Tool Runner actually replaces**, honestly assessed rather than
+    oversold: the manual `for block in message.content: if block.type ==
+    "tool_use"` search is gone — the SDK now owns dispatching to a real
+    Python function (`@beta_tool`-decorated) instead of us pattern-matching
+    response blocks by hand. What *doesn't* change: the cost/latency
+    logging, the Pydantic validation of the model's output, and the forced
+    single-tool `tool_choice` — those are ours either way. A small, real
+    win, not a rewrite.
+  - **A genuine wrinkle surfaced building it**: forcing `tool_choice` is
+    incompatible with letting the runner "loop until done" naturally,
+    since a forced tool_choice would make Claude call the same tool again
+    on every follow-up turn too. Fixed with `max_iterations=1` and reading
+    the result from the tool function's own side effect (a captured dict)
+    rather than trusting the loop to reach a final text response — makes
+    the code correct regardless of how many round trips the runner
+    actually makes internally.
+  - **Verified as far as this account's billing allows**: full test suite
+    green (13 tests, including the two triage tests rewritten to mock
+    `tool_runner` instead of the raw `messages.create` call), and the real
+    (unmocked) code path exercised live — it reaches the actual Anthropic
+    API and gets back a genuine `anthropic.BadRequestError` (credit
+    balance too low), not a `TypeError`/`AttributeError` from our own
+    wiring. That's as close to a full live verification as this account's
+    billing state currently allows, and it's the meaningful signal: the
+    request is well-formed and reaches Anthropic's servers correctly.
+- **Multi-agent reflection**: TaskFlow's triage is a single classify-and-
+  return call on one task at a time — there's no genuinely independent,
+  parallelizable sub-problem in this app worth a multi-agent split (per
+  the lesson's own guidance: parallel subagents pay off when tasks are
+  genuinely independent, not by default). What *would* justify it here:
+  triaging a large batch of tasks concurrently, where each task's triage
+  is independent of the others. Out of scope for a single-user demo app
+  with an in-memory store — noted rather than built to avoid manufacturing
+  complexity the app doesn't need.
+- **Retired a recurring chore to a real scheduled agent**: a weekly Claude
+  cron task (`taskflow-triage-digest`, Mondays) that pulls recent
+  `triage_call` log events (Fly if reachable, local dev logs otherwise),
+  reuses `backend/scripts/triage_metrics.py`'s aggregation logic, appends
+  a dated entry to `docs/triage-digests.md`, and opens a PR — distinct
+  from Phase 06's GitHub Actions cron (a script run *by* CI) in that this
+  is an actual Claude agent run *as* Claude, on its own schedule, no
+  action from the user. Ran it once manually before trusting the schedule
+  to prove the mechanism actually produces a correct entry rather than
+  just configuring it and hoping: one real (if sparse — a single call,
+  which failed on the same known Anthropic billing block, not a bug)
+  digest entry now committed. The recurring Monday schedule is armed for
+  everything after this.

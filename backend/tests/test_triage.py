@@ -59,17 +59,15 @@ def _make_task() -> object:
 
 
 def test_suggest_priority_logs_triage_call_on_success(monkeypatch, caplog) -> None:
-    fake_message = SimpleNamespace(
-        content=[
-            SimpleNamespace(
-                type="tool_use",
-                name="suggest_priority",
-                input={"priority": "high", "rationale": "Outages are urgent."},
-            )
-        ],
-        usage=SimpleNamespace(input_tokens=42, output_tokens=7),
-    )
-    monkeypatch.setattr(triage_module._client.messages, "create", lambda **kwargs: fake_message)
+    def fake_tool_runner(**kwargs):
+        # Simulate the SDK executing our forced tool call: invoke the
+        # decorated tool function exactly as the runner would, then hand
+        # back one message (for its .usage) as the loop's only iteration.
+        tool = kwargs["tools"][0]
+        tool(priority="high", rationale="Outages are urgent.")
+        return iter([SimpleNamespace(usage=SimpleNamespace(input_tokens=42, output_tokens=7))])
+
+    monkeypatch.setattr(triage_module._client.beta.messages, "tool_runner", fake_tool_runner)
 
     with caplog.at_level(logging.INFO, logger="taskflow"):
         result = triage_module.suggest_priority(_make_task())
@@ -90,7 +88,7 @@ def test_suggest_priority_logs_triage_call_on_failure(monkeypatch, caplog) -> No
     def raise_error(**kwargs):
         raise RuntimeError("Claude API unavailable")
 
-    monkeypatch.setattr(triage_module._client.messages, "create", raise_error)
+    monkeypatch.setattr(triage_module._client.beta.messages, "tool_runner", raise_error)
 
     with caplog.at_level(logging.INFO, logger="taskflow"):
         try:
